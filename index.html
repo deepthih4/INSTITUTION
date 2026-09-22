@@ -3612,7 +3612,7 @@ html,body,#app{background:#fff!important;}
    All database requests go through the Render server.
 ========================================================= */
 
-const API_URL = "https://institution-r2ac.onrender.com";
+const API_URL = "";
 
 function renderDbError(message, details){
     return {
@@ -4120,7 +4120,8 @@ async function login(){
                 method:"POST",
                 credentials:"same-origin",
                 headers:{
-                    "Content-Type":"application/json"
+                    "Content-Type":"application/json",
+                    "Accept":"application/json"
                 },
                 body:JSON.stringify({
                     loginId,
@@ -4129,11 +4130,34 @@ async function login(){
             }
         );
 
-        const result = await response.json();
+        const contentType =
+            response.headers.get("content-type") || "";
+
+        let result;
+
+        if(contentType.includes("application/json")){
+            result = await response.json();
+        }else{
+            const rawText = await response.text();
+
+            if(rawText.trim().startsWith("<!DOCTYPE") ||
+               rawText.trim().startsWith("<html")){
+                throw new Error(
+                    "Render is serving the HTML page instead of /api/login. " +
+                    "Make sure this project is deployed as a Node/Express Web Service " +
+                    "with Start Command: npm start."
+                );
+            }
+
+            throw new Error(
+                rawText.slice(0,180) ||
+                "Server returned an invalid response."
+            );
+        }
 
         if(!response.ok || !result.success){
             throw new Error(
-                result.message || "Invalid login details."
+                result?.message || "Invalid login details."
             );
         }
 
