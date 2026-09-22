@@ -644,7 +644,7 @@ app.get("/", (req, res) => {
     res.sendFile(
         path.join(
             __dirname,
-            "institution-access-render.html"
+            "institution-access-render-fixed.html"
         )
     );
 });
