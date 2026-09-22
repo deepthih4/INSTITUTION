@@ -1,11 +1,17 @@
 {
-  "name": "institution-dashboard",
+  "name": "institution-access-render",
   "version": "1.0.0",
+  "description": "Institution Access Dashboard hosted on Render",
   "private": true,
+  "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
-    "express": "^5.1.0"
+    "@supabase/supabase-js": "^2.57.4",
+    "express": "^4.21.2"
   }
 }
