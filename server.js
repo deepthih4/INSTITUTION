@@ -10,12 +10,12 @@ app.use(express.static(__dirname));
 
 // Open institution-access.html
 app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "institution-access.html"));
+    res.sendFile(path.join(__dirname, "index.html"));
 });
 
 // Fallback
 app.use((req, res) => {
-    res.sendFile(path.join(__dirname, "institution-access.html"));
+    res.sendFile(path.join(__dirname, "index.html"));
 });
 
 app.listen(PORT, "0.0.0.0", () => {
