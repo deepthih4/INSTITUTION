@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Institution Access</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
 *{
@@ -3606,21 +3605,256 @@ html,body,#app{background:#fff!important;}
 
 <script>
 
+
 /* =========================================================
-   SUPABASE CONNECTION
+   RENDER BACKEND CONNECTION
+   No Supabase URL/key is stored in this HTML.
+   All database requests go through the Render server.
 ========================================================= */
 
-const SUPABASE_URL =
-    "https://wqduicdjhrlhckkahwjt.supabase.co/";
+const API_URL = "https://institution-r2ac.onrender.com";
 
-const SUPABASE_ANON_KEY =
-    "sb_publishable_zhMlESulGJdiiKA0MhKZPQ_I0VgenF8";
+function renderDbError(message, details){
+    return {
+        message: message || "Database request failed.",
+        details: details || null
+    };
+}
 
-const supabaseClient =
-    supabase.createClient(
-        SUPABASE_URL,
-        SUPABASE_ANON_KEY
-    );
+class RenderQuery {
+    constructor(table){
+        this.table = table;
+        this.operation = "select";
+        this.columns = "*";
+        this.payload = undefined;
+        this.options = {};
+        this.filters = [];
+        this.ordering = [];
+        this.limitValue = null;
+        this.orValue = null;
+        this.selectAfterWrite = false;
+    }
+
+    select(columns="*", options={}){
+        this.columns = columns || "*";
+        this.selectAfterWrite = true;
+        this.options = {...this.options, ...(options || {})};
+        return this;
+    }
+
+    insert(payload, options={}){
+        this.operation = "insert";
+        this.payload = payload;
+        this.options = {...this.options, ...(options || {})};
+        return this;
+    }
+
+    update(payload, options={}){
+        this.operation = "update";
+        this.payload = payload;
+        this.options = {...this.options, ...(options || {})};
+        return this;
+    }
+
+    delete(options={}){
+        this.operation = "delete";
+        this.options = {...this.options, ...(options || {})};
+        return this;
+    }
+
+    upsert(payload, options={}){
+        this.operation = "upsert";
+        this.payload = payload;
+        this.options = {...this.options, ...(options || {})};
+        return this;
+    }
+
+    eq(column, value){
+        this.filters.push({column, operator:"eq", value});
+        return this;
+    }
+
+    neq(column, value){
+        this.filters.push({column, operator:"neq", value});
+        return this;
+    }
+
+    ilike(column, value){
+        this.filters.push({column, operator:"ilike", value});
+        return this;
+    }
+
+    in(column, values){
+        this.filters.push({column, operator:"in", value:values});
+        return this;
+    }
+
+    gt(column, value){
+        this.filters.push({column, operator:"gt", value});
+        return this;
+    }
+
+    gte(column, value){
+        this.filters.push({column, operator:"gte", value});
+        return this;
+    }
+
+    lt(column, value){
+        this.filters.push({column, operator:"lt", value});
+        return this;
+    }
+
+    lte(column, value){
+        this.filters.push({column, operator:"lte", value});
+        return this;
+    }
+
+    is(column, value){
+        this.filters.push({column, operator:"is", value});
+        return this;
+    }
+
+    or(value){
+        this.orValue = value;
+        return this;
+    }
+
+    order(column, options={}){
+        this.ordering.push({
+            column,
+            ascending: options?.ascending !== false,
+            nullsFirst: options?.nullsFirst,
+            referencedTable: options?.referencedTable
+        });
+        return this;
+    }
+
+    limit(value){
+        this.limitValue = Number(value);
+        return this;
+    }
+
+    async maybeSingle(){
+        const result = await this._execute();
+        if(result.error) return result;
+
+        const rows = Array.isArray(result.data) ? result.data : [];
+
+        if(rows.length > 1){
+            return {
+                data:null,
+                error:renderDbError("Multiple rows returned where one row was expected.")
+            };
+        }
+
+        return {
+            data:rows[0] || null,
+            error:null
+        };
+    }
+
+    async single(){
+        const result = await this._execute();
+        if(result.error) return result;
+
+        const rows = Array.isArray(result.data) ? result.data : [];
+
+        if(rows.length !== 1){
+            return {
+                data:null,
+                error:renderDbError(
+                    rows.length === 0
+                        ? "No rows returned where one row was expected."
+                        : "Multiple rows returned where one row was expected."
+                )
+            };
+        }
+
+        return {
+            data:rows[0],
+            error:null
+        };
+    }
+
+    then(resolve, reject){
+        return this._execute().then(resolve, reject);
+    }
+
+    catch(reject){
+        return this._execute().catch(reject);
+    }
+
+    finally(fn){
+        return this._execute().finally(fn);
+    }
+
+    async _execute(){
+        try{
+            const response = await fetch(API_URL + "/api/db", {
+                method:"POST",
+                credentials:"same-origin",
+                headers:{
+                    "Content-Type":"application/json"
+                },
+                body:JSON.stringify({
+                    table:this.table,
+                    operation:this.operation,
+                    columns:this.columns,
+                    payload:this.payload,
+                    options:this.options,
+                    filters:this.filters,
+                    ordering:this.ordering,
+                    limit:this.limitValue,
+                    or:this.orValue,
+                    selectAfterWrite:this.selectAfterWrite
+                })
+            });
+
+            let result;
+
+            try{
+                result = await response.json();
+            }catch{
+                result = {
+                    data:null,
+                    error:renderDbError(
+                        "Render server returned an invalid response.",
+                        "HTTP " + response.status
+                    )
+                };
+            }
+
+            if(!response.ok){
+                return {
+                    data:null,
+                    error:result.error || renderDbError(
+                        "Render database request failed.",
+                        "HTTP " + response.status
+                    )
+                };
+            }
+
+            return {
+                data:result.data ?? null,
+                error:result.error ?? null
+            };
+
+        }catch(error){
+            return {
+                data:null,
+                error:renderDbError(
+                    error?.message || "Unable to connect to Render server."
+                )
+            };
+        }
+    }
+}
+
+const supabaseClient = {
+    from(table){
+        return new RenderQuery(table);
+    }
+};
 
 
 let institution = null;
@@ -3880,41 +4114,30 @@ async function login(){
 
     try{
 
-        // Login with either institution email or institution ID.
-        let query =
-            supabaseClient
-            .from("institutions")
-            .select("*")
-            .or(
-                "email.eq." + loginId +
-                ",institution_id.eq." + loginId.toUpperCase()
-            )
-            .eq("status", "active")
-            .limit(1);
+        const response = await fetch(
+            API_URL + "/api/login",
+            {
+                method:"POST",
+                credentials:"same-origin",
+                headers:{
+                    "Content-Type":"application/json"
+                },
+                body:JSON.stringify({
+                    loginId,
+                    password
+                })
+            }
+        );
 
-        const { data, error } =
-            await query;
+        const result = await response.json();
 
-        if(error){
-            throw error;
-        }
-
-        if(!data || !data.length){
+        if(!response.ok || !result.success){
             throw new Error(
-                "Institution account not found."
+                result.message || "Invalid login details."
             );
         }
 
-        const row = data[0];
-
-        if(
-            String(row.access_password || "") !==
-            password
-        ){
-            throw new Error(
-                "Invalid login details."
-            );
-        }
+        const row = result.institution;
 
         institution = {
             id: row.id,
@@ -5769,7 +5992,19 @@ function toggleMenu(){
    LOGOUT
 ========================================================= */
 
-function logout(){
+async function logout(){
+
+    try{
+        await fetch(
+            API_URL + "/api/logout",
+            {
+                method:"POST",
+                credentials:"same-origin"
+            }
+        );
+    }catch(error){
+        console.warn("Render logout request failed:", error);
+    }
 
     institution = null;
 
@@ -5780,16 +6015,13 @@ function logout(){
     .getElementById("app")
     .style.display = "none";
 
-
     document
     .getElementById("loginScreen")
     .style.display = "flex";
 
-
     document
     .getElementById("loginPassword")
     .value = "";
-
 
     openPage("dashboard");
 
