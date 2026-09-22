@@ -38,16 +38,24 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
     );
 }
 
-const supabase = createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY,
-    {
-        auth: {
-            autoRefreshToken: false,
-            persistSession: false
+let supabase = null;
+
+if (SUPABASE_URL && SUPABASE_KEY) {
+    supabase = createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY,
+        {
+            auth: {
+                autoRefreshToken: false,
+                persistSession: false
+            }
         }
-    }
-);
+    );
+} else {
+    console.error(
+        "Supabase Environment Variables missing!"
+    );
+}
 
 /* =========================================================
    SESSION FUNCTIONS
